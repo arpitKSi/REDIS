@@ -49,6 +49,230 @@ Custom_Redis/
 └── README.md         # This file
 ```
 
+## � Quick Start & Usage
+
+### Step 1: Clone and Build
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/Custom-Redis.git
+cd Custom-Redis
+
+# Build all components
+g++ -std=gnu++17 -Wall -Wno-unused-variable -Iinclude -c src/avl.cpp -o src/avl.o
+g++ -std=gnu++17 -Wall -Wno-unused-variable -Iinclude -c src/hashtable.cpp -o src/hashtable.o
+g++ -std=gnu++17 -Wall -Wno-unused-variable -Iinclude -c src/heap.cpp -o src/heap.o
+g++ -std=gnu++17 -Wall -Wno-unused-variable -Iinclude -c src/zset.cpp -o src/zset.o
+g++ -std=gnu++17 -Wall -Wno-unused-variable -Iinclude -c src/thread_pool.cpp -o src/thread_pool.o
+```
+
+### Step 2: Build and Run Demo
+
+```bash
+# Build the interactive demo
+g++ -std=gnu++17 -Wall -Wno-unused-variable -Iinclude demo.cpp src/avl.o src/hashtable.o src/zset.o -o demo.exe
+
+# Run the demo
+./demo.exe
+```
+
+### 📺 Demo Output
+
+```
+=== Custom Redis Demo ===
+
+1. Testing Sorted Set (ZSet) functionality...
+   Adding players with scores...
+   Looking up scores...
+   Alice's score: 100.5
+   Bob's score: 85
+   Updating Alice's score to 95.0...
+   Alice's new score: 95
+   Finding players with score >= 90.0...
+   Player: charlie (score: 92.3)
+   Player: alice (score: 95)
+   Player: diana (score: 110.2)
+
+2. Testing Hash Table functionality...
+   Hash table is working internally in ZSet!
+   ZSet size: 4 players
+
+3. Testing AVL Tree functionality...
+   AVL tree is maintaining sorted order in ZSet!
+   Tree height: 3
+   Total nodes: 4
+
+=== Demo completed successfully! ===
+All Custom Redis components are working correctly.
+```
+
+## 🎮 Interactive Usage Examples
+
+### Redis-Like Commands
+
+```bash
+# Build the mock client for Redis commands
+g++ -std=gnu++17 -Wall -Wno-unused-variable -Iinclude mock_client.cpp src/avl.o src/hashtable.o src/zset.o -o client.exe
+
+# Add members to a sorted set
+./client.exe zadd leaderboard 100 alice    # Returns: (int) 1
+./client.exe zadd leaderboard 85 bob       # Returns: (int) 1
+./client.exe zadd leaderboard 92 charlie   # Returns: (int) 1
+
+# Get scores
+./client.exe zscore leaderboard alice      # Returns: (dbl) 100
+./client.exe zscore leaderboard bob        # Returns: (dbl) 85
+
+# Update scores
+./client.exe zadd leaderboard 95 alice     # Returns: (int) 0 (updated)
+
+# Query non-existent data
+./client.exe zscore nonexistent player     # Returns: (nil)
+```
+
+### Programming API Usage
+
+```cpp
+#include "zset.h"
+
+int main() {
+    // Create a sorted set
+    ZSet leaderboard = {};
+    
+    // Add players with scores
+    zset_insert(&leaderboard, "alice", 5, 100.0);
+    zset_insert(&leaderboard, "bob", 3, 85.0);
+    zset_insert(&leaderboard, "charlie", 7, 92.0);
+    
+    // Look up a player's score
+    ZNode* player = zset_lookup(&leaderboard, "alice", 5);
+    if (player) {
+        printf("Alice's score: %.1f\n", player->score);
+    }
+    
+    // Find players with score >= 90
+    ZNode* node = zset_seekge(&leaderboard, 90.0, "", 0);
+    while (node) {
+        printf("High scorer: %.*s (%.1f)\n", 
+               (int)node->len, node->name, node->score);
+        node = znode_offset(node, 1);
+    }
+    
+    // Clean up
+    zset_clear(&leaderboard);
+    return 0;
+}
+```
+
+## 🎯 Advanced Usage Examples
+
+### Custom Data Integration
+
+```cpp
+// Example: Gaming leaderboard with custom player data
+struct Player {
+    ZNode znode;           // Embedded ZSet node
+    std::string username;
+    int level;
+    time_t last_seen;
+};
+
+// Usage
+ZSet global_leaderboard = {};
+Player* alice = new Player{"alice", 50, time(nullptr)};
+
+// Insert player into leaderboard
+zset_insert(&global_leaderboard, alice->username.c_str(), 
+            alice->username.length(), alice->level);
+```
+
+### Range Queries and Rankings
+
+```cpp
+// Find top 10 players
+ZNode* top_player = zset_seekge(&leaderboard, 0, "", 0);
+for (int i = 0; i < 10 && top_player; i++) {
+    printf("Rank %d: %.*s (Score: %.0f)\n", 
+           i+1, (int)top_player->len, top_player->name, top_player->score);
+    top_player = znode_offset(top_player, 1);
+}
+
+// Find players in score range [90, 100]
+ZNode* start = zset_seekge(&leaderboard, 90.0, "", 0);
+while (start && start->score <= 100.0) {
+    // Process player
+    start = znode_offset(start, 1);
+}
+```
+
+### Thread Pool Usage
+
+```cpp
+#include "thread_pool.h"
+
+void process_request(void* arg) {
+    // Your request processing logic
+    printf("Processing request in thread\n");
+}
+
+int main() {
+    TheadPool tp;
+    thread_pool_init(&tp, 4);  // 4 worker threads
+    
+    // Queue work items
+    for (int i = 0; i < 100; i++) {
+        thread_pool_queue(&tp, process_request, nullptr);
+    }
+    
+    return 0;
+}
+```
+
+## 🔧 Troubleshooting
+
+### Common Build Issues
+
+**Issue: `cannot find 'typeof'`**
+```bash
+# Solution: Use GNU extensions
+g++ -std=gnu++17 -Wall -Wno-unused-variable ...
+```
+
+**Issue: `undefined reference to pthread_create`**
+```bash
+# Solution: Link pthread library (Linux/macOS)
+g++ ... -lpthread
+```
+
+**Issue: Missing system headers on Windows**
+```bash
+# Solution: This is expected - networking requires Unix/Linux
+# Use the demo and test programs instead
+./demo.exe
+```
+
+### Performance Tuning
+
+**Hash Table Sizing:**
+```cpp
+// For optimal performance, size should be power of 2
+// Default starts small and grows automatically
+```
+
+**AVL Tree vs Hash Table Trade-offs:**
+- Use ZSet for sorted access + fast lookups
+- Use hash table alone for pure key-value storage
+- Use AVL tree alone for pure sorted access
+
+### Memory Management
+
+```cpp
+// Always clean up ZSets
+ZSet my_zset = {};
+// ... use the zset ...
+zset_clear(&my_zset);  // Frees all nodes
+```
+
 ## 🛠️ Building the Project
 
 ### Prerequisites
@@ -82,25 +306,62 @@ make                 # Build all components
 make clean          # Clean build artifacts
 ```
 
-## 🧪 Testing
+## 🧪 Testing & Verification
 
 ### Run All Tests
 
 ```bash
-# Run core data structure tests
-./test_avl.exe       # AVL tree functionality
+# Build and run core data structure tests
+./test_avl.exe       # AVL tree functionality (500+ test cases)
 ./test_offset.exe    # AVL offset/ranking operations  
 ./test_heap.exe      # Binary heap operations
 
-# Run demonstration
-./demo.exe           # Interactive demo of Redis functionality
+# Run Redis functionality tests
+python test_redis_commands.py
 ```
+
+### Test Output Examples
+
+**AVL Tree Tests:**
+```bash
+$ ./test_avl.exe
+# (Silent success - all 500+ test cases passed)
+# Tests insertion, deletion, balancing, and tree integrity
+```
+
+**Redis Command Tests:**
+```bash
+$ python test_redis_commands.py
+=== Mock Redis Command Test ===
+Compiling Redis test...
+Running Redis command tests...
+Test 1 - zscore asdf n1: PASS (nil)
+Test 2 - zadd zset 1 n1: PASS (int) 1
+Test 3 - zadd zset 2 n2: PASS (int) 1
+Test 4 - zadd zset 1.1 n1 (update): PASS (int) 0
+Test 5 - zscore zset n1: PASS (dbl) 1.1
+Test 6 - Total members: 2 (expected: 2)
+Test 7 - Range query (score >= 1.0):
+  Member: n1 (score: 1.1)
+  Member: n2 (score: 2)
+=== All tests completed ===
+```
+
+### Performance Benchmarks
+
+The test suite verifies performance characteristics:
+
+- **AVL Tree**: O(log n) operations verified up to 500 nodes
+- **Hash Table**: O(1) average lookup time with progressive rehashing
+- **ZSet**: Combined operations maintain expected complexity
+- **Memory**: Intrusive design minimizes allocation overhead
 
 ### Test Coverage
 - **AVL Tree**: 500+ test cases covering insertion, deletion, balancing, and offset queries
 - **Hash Table**: Progressive rehashing, collision handling, and performance tests
 - **Heap**: Min-heap property maintenance and external reference tracking
 - **ZSet**: Combined AVL + hash table operations with Redis command compatibility
+- **Thread Safety**: Concurrent operations and synchronization patterns
 
 ## 🎯 Demo Output
 
