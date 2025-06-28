@@ -14,7 +14,7 @@ A lightweight, high-performance Redis-like key-value store implementation in C++
 ## 📁 Project Structure
 
 ```
-Redis/
+REDIS/
 ├── include/           # Header files
 │   ├── avl.h         # AVL tree implementation
 │   ├── common.h      # Common utilities and macros
